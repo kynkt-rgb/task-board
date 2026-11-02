@@ -3,6 +3,7 @@
 // サーバーとのやりとりは fakeApi にまとめ、少し待ち時間を入れて通信中の見え方も確かめられるようにしている。
 
 const STATUSES = ['todo', 'doing', 'done'];
+const SORTABLE = ['todo', 'doing']; // 並び替えできる列（F-09）
 const MAX_LENGTH = 50;
 const WAIT_MS = 400; // 通信にかかる時間のまね
 
@@ -51,6 +52,24 @@ const fakeApi = {
     if (this.saveError) throw new Error('サーバーに接続できません');
     this.cards = this.cards.filter((c) => c.id !== id);
   },
+  // F-09 並び替え：同じ列の1つ上（up）・1つ下（down）のカードと入れかえる
+  async reorder(id, direction) {
+    await this.wait();
+    if (this.saveError) throw new Error('サーバーに接続できません');
+    const card = this.cards.find((c) => c.id === id);
+    if (!card) throw new Error('カードが見つかりません');
+    if (!SORTABLE.includes(card.status)) throw new Error('この列は並び替えできません');
+
+    const sameColumn = this.cards.filter((c) => c.status === card.status);
+    const pos = sameColumn.indexOf(card);
+    const neighbor = sameColumn[direction === 'up' ? pos - 1 : pos + 1];
+    if (!neighbor) throw new Error(direction === 'up' ? 'すでに一番上です' : 'すでに一番下です');
+
+    // 配列の中で、2枚のカードの場所を入れかえる
+    const a = this.cards.indexOf(card);
+    const b = this.cards.indexOf(neighbor);
+    [this.cards[a], this.cards[b]] = [this.cards[b], this.cards[a]];
+  },
 };
 
 // ---- 画面の部品 ----
@@ -89,7 +108,7 @@ function setBusy(value) {
 }
 
 // ---- 描画 ----
-function render(focusTarget) {
+function render(focusTargets) {
   STATUSES.forEach((status, index) => {
     const column = document.querySelector(`.column[data-status="${status}"]`);
     const list = column.querySelector('.card-list');
@@ -106,19 +125,20 @@ function render(focusTarget) {
       return;
     }
 
-    inColumn.forEach((card) => {
-      list.append(createCard(card, index));
+    inColumn.forEach((card, pos) => {
+      list.append(createCard(card, index, pos === 0, pos === inColumn.length - 1));
     });
   });
 
   // 操作したあと、フォーカスが迷子にならないようにする
-  if (focusTarget) {
-    const el = document.querySelector(focusTarget);
+  // focusTargets は「先に書いたものほど優先」のセレクターの配列
+  if (focusTargets) {
+    const el = focusTargets.map((s) => document.querySelector(s)).find(Boolean);
     (el || input).focus();
   }
 }
 
-function createCard(card, index) {
+function createCard(card, index, isFirst, isLast) {
   const li = document.createElement('li');
   li.className = 'card';
   li.dataset.id = card.id;
@@ -139,20 +159,40 @@ function createCard(card, index) {
 
   top.append(title, del);
 
+  // 下の段は 左[←]・まんなか[↑][↓]・右[→] の3つの場所に分ける
   const actions = document.createElement('div');
   actions.className = 'card-actions';
+  const leftSlot = document.createElement('div');
+  const sortSlot = document.createElement('div');
+  const rightSlot = document.createElement('div');
+  leftSlot.className = 'slot-left';
+  sortSlot.className = 'slot-sort';
+  rightSlot.className = 'slot-right';
 
   if (index > 0) {
     const left = makeMoveButton('←', `「${card.title}」を${label(STATUSES[index - 1])}へ移動`, 'move-left');
     left.addEventListener('click', () => moveCard(card, STATUSES[index - 1], 'move-left'));
-    actions.append(left);
+    leftSlot.append(left);
+  }
+  if (SORTABLE.includes(card.status)) {
+    if (!isFirst) {
+      const up = makeMoveButton('↑', `「${card.title}」を上へ`, 'sort-up');
+      up.addEventListener('click', () => reorderCard(card, 'up'));
+      sortSlot.append(up);
+    }
+    if (!isLast) {
+      const down = makeMoveButton('↓', `「${card.title}」を下へ`, 'sort-down');
+      down.addEventListener('click', () => reorderCard(card, 'down'));
+      sortSlot.append(down);
+    }
   }
   if (index < STATUSES.length - 1) {
     const right = makeMoveButton('→', `「${card.title}」を${label(STATUSES[index + 1])}へ移動`, 'move-right');
     right.addEventListener('click', () => moveCard(card, STATUSES[index + 1], 'move-right'));
-    actions.append(right);
+    rightSlot.append(right);
   }
 
+  actions.append(leftSlot, sortSlot, rightSlot);
   li.append(top, actions);
   return li;
 }
@@ -188,7 +228,7 @@ async function load() {
 }
 
 // 保存して、成功したら一覧を読みなおす（本物と同じ流れ）
-async function save(action, focusTarget) {
+async function save(action, focusTargets) {
   setBusy(true);
   try {
     await action();
@@ -200,7 +240,7 @@ async function save(action, focusTarget) {
     return false;
   } finally {
     setBusy(false);
-    render(focusTarget);
+    render(focusTargets);
   }
 }
 
@@ -221,7 +261,7 @@ form.addEventListener('submit', async (event) => {
   }
   showInputError('');
 
-  const ok = await save(() => fakeApi.add(title), '#title-input');
+  const ok = await save(() => fakeApi.add(title), ['#title-input']);
   if (ok) input.value = ''; // 失敗したときは文字を残す
 });
 
@@ -229,13 +269,23 @@ function moveCard(card, to, buttonClass) {
   if (busy) return;
   // 移動したカードの同じ向きのボタンにフォーカスを戻す（なければ反対向き）
   const other = buttonClass === 'move-left' ? 'move-right' : 'move-left';
-  save(() => fakeApi.move(card.id, to), `.card[data-id="${card.id}"] .${buttonClass}, .card[data-id="${card.id}"] .${other}`);
+  const base = `.card[data-id="${card.id}"]`;
+  save(() => fakeApi.move(card.id, to), [`${base} .${buttonClass}`, `${base} .${other}`]);
+}
+
+// F-09：入れかえたあとは同じボタンへ。端に着いて消えたら反対向きのボタンへ
+function reorderCard(card, direction) {
+  if (busy) return;
+  const same = direction === 'up' ? 'sort-up' : 'sort-down';
+  const other = direction === 'up' ? 'sort-down' : 'sort-up';
+  const base = `.card[data-id="${card.id}"]`;
+  save(() => fakeApi.reorder(card.id, direction), [`${base} .${same}`, `${base} .${other}`]);
 }
 
 function removeCard(card) {
   if (busy) return;
   if (!confirm(`「${card.title}」を削除しますか？`)) return; // M-02
-  save(() => fakeApi.remove(card.id), '#title-input');
+  save(() => fakeApi.remove(card.id), ['#title-input']);
 }
 
 // ---- 確認用パネル（本番にはない） ----

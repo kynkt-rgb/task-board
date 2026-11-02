@@ -90,8 +90,16 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .card-top { display: flex; align-items: flex-start; gap: 8px; }
 .card-title { flex: 1; overflow-wrap: anywhere; padding-top: 4px; }   /* 長いときは折り返す */
-.card-actions { display: flex; justify-content: space-between; margin-top: 6px; }
-.card-actions .move-right { margin-left: auto; }
+/* 下の段：左[←]・まんなか[↑][↓]・右[→] */
+.card-actions {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin-top: 6px;
+}
+.slot-left  { justify-self: start; }
+.slot-sort  { display: flex; gap: 4px; }
+.slot-right { justify-self: end; }
 .delete-button { background: transparent; border-color: transparent; font-size: 1.1rem; }
 .delete-button:hover { background: rgba(0, 0, 0, 0.06); }
 
