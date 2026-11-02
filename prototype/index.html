@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>タスクボード（プロトタイプ）</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- プロトタイプだと分かるようにするお知らせ（本番にはない） -->
+  <div class="proto-banner">
+    これはプロトタイプです。サーバーやDBは使わず、データはページを再読みこみすると最初に戻ります。
+  </div>
+
+  <header>
+    <!-- ① タイトル -->
+    <h1>タスクボード</h1>
+  </header>
+
+  <main>
+    <form id="add-form" class="add-form" novalidate>
+      <div class="add-row">
+        <!-- ② タイトル入力欄 -->
+        <label for="title-input" class="visually-hidden">カードのタイトル</label>
+        <input id="title-input" type="text" placeholder="タイトルを入力（50文字まで）" autocomplete="off">
+        <!-- ③ 追加ボタン -->
+        <button type="submit" id="add-button" class="add-button">追加</button>
+      </div>
+      <!-- ④ 入力エラー（M-01） -->
+      <p id="input-error" class="error" role="alert" hidden></p>
+      <!-- ⑧ 状態メッセージ（M-03 / M-04 / M-05） -->
+      <p id="status" class="status" role="status" hidden></p>
+    </form>
+
+    <!-- ⑤〜⑦ ボード（3列） -->
+    <div class="board">
+      <section class="column" data-status="todo">
+        <h2><span>やること</span><span class="count"></span></h2>
+        <ul class="card-list"></ul>
+      </section>
+      <section class="column" data-status="doing">
+        <h2><span>進行中</span><span class="count"></span></h2>
+        <ul class="card-list"></ul>
+      </section>
+      <section class="column" data-status="done">
+        <h2><span>完了</span><span class="count"></span></h2>
+        <ul class="card-list"></ul>
+      </section>
+    </div>
+  </main>
+
+  <!-- 確認用パネル：エラーの見え方をためすためのもの（本番にはない） -->
+  <aside class="proto-panel">
+    <h2>プロトタイプ確認用</h2>
+    <label><input type="checkbox" id="sim-save-error"> 保存エラーをためす（M-04）</label>
+    <button type="button" id="sim-load-error">読みこみエラーをためす（M-05）</button>
+    <button type="button" id="sim-reload">最初からやりなおす</button>
+  </aside>
+
+  <script src="script.js"></script>
+</body>
+</html>

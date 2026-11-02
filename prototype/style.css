@@ -1,0 +1,110 @@
+/* 見た目のルール（docs/03_screen-design.md）に合わせる */
+:root {
+  --bg: #eef0f3;          /* 背景：明るいグレー */
+  --column: #ffffff;      /* 列：白 */
+  --todo: #fff6cc;        /* やること：薄い黄 */
+  --doing: #dcecff;       /* 進行中：薄い青 */
+  --done: #dcf5e1;        /* 完了：薄い緑 */
+  --text: #1f2328;
+  --muted: #6b7280;
+  --error: #c62828;
+  --focus: #1a73e8;       /* フォーカス：青い枠線 */
+  --border: #d0d5dc;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+header, main { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+h1 { font-size: 1.6rem; margin: 20px 0 12px; }
+
+/* Tab で選んでいる部品に青い枠 */
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---- 入力欄 ---- */
+.add-form { margin-bottom: 16px; }
+.add-row { display: flex; gap: 8px; }
+#title-input {
+  flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px;
+  font-size: 16px; border: 1px solid var(--border); border-radius: 6px; background: #fff;
+}
+button {
+  min-width: 32px; min-height: 32px;   /* 押せる大きさ 32px 以上 */
+  font: inherit; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text);
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.add-button {
+  min-height: 44px; padding: 0 20px;
+  background: var(--focus); border-color: var(--focus); color: #fff; font-weight: bold;
+}
+
+.error, .status { margin: 6px 0 0; }
+.error, .status.is-error { color: var(--error); font-weight: bold; }
+.status { color: var(--muted); }
+
+/* ---- ボード ---- */
+.board {
+  display: grid;
+  grid-template-columns: 1fr;          /* スマホ：縦にならべる */
+  gap: 16px;
+  padding-bottom: 24px;
+}
+@media (min-width: 768px) {
+  .board { grid-template-columns: repeat(3, 1fr); }   /* PC：横に3列 */
+  .add-row { max-width: 640px; }
+}
+
+.column {
+  background: var(--column);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.column h2 { font-size: 1.15rem; margin: 0 0 10px; }
+
+.card-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.empty { color: var(--muted); padding: 8px 4px; }
+
+.card {
+  border-radius: 8px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.column[data-status="todo"] .card  { background: var(--todo); }
+.column[data-status="doing"] .card { background: var(--doing); }
+.column[data-status="done"] .card  { background: var(--done); }
+
+.card-top { display: flex; align-items: flex-start; gap: 8px; }
+.card-title { flex: 1; overflow-wrap: anywhere; padding-top: 4px; }   /* 長いときは折り返す */
+.card-actions { display: flex; justify-content: space-between; margin-top: 6px; }
+.card-actions .move-right { margin-left: auto; }
+.delete-button { background: transparent; border-color: transparent; font-size: 1.1rem; }
+.delete-button:hover { background: rgba(0, 0, 0, 0.06); }
+
+/* ---- プロトタイプ用（本番にはない） ---- */
+.proto-banner {
+  background: #fff3e0; color: #7a4a00; border-bottom: 1px solid #f0c27a;
+  padding: 8px 16px; font-size: 14px; text-align: center;
+}
+.proto-panel {
+  max-width: 1100px; margin: 0 auto 32px; padding: 12px 16px;
+  border: 2px dashed #f0c27a; border-radius: 10px; background: #fffaf2;
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 14px;
+}
+.proto-panel h2 { font-size: 14px; margin: 0; width: 100%; color: #7a4a00; }
+.proto-panel button { padding: 0 12px; font-size: 14px; }
+@media (max-width: 1132px) { .proto-panel { margin-left: 16px; margin-right: 16px; } }
