@@ -11,6 +11,7 @@
 | GET | `/api/cards` | カード一覧 | － | 200 | 401 |
 | POST | `/api/cards` | カード追加 | `{"title":"宿題"}` | 201 | 400（空・51文字以上） |
 | PATCH | `/api/cards/:id` | となりの列へ移動 | `{"status":"doing"}` | 200 | 400（となりでない列）・404 |
+| POST | `/api/cards/:id/reorder` | 同じ列の中で1つ上・1つ下と入れかえる（F-09） | `{"direction":"up"}`（`up` か `down`） | 200 | 400（向きがちがう・「完了」の列・すでに一番上／一番下）・404 |
 | DELETE | `/api/cards/:id` | カード削除 | － | 204 | 404 |
 
 返すカードの形：

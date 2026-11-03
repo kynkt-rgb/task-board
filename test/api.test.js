@@ -158,6 +158,95 @@ describe('カード移動 F-03', () => {
   });
 });
 
+describe('カード並び替え F-09', () => {
+  const reorder = (id, direction) => call('POST', `/api/cards/${id}/reorder`, { direction });
+
+  test('真ん中のカードを↑で一番上に、↓で一番下に動かせる（AT-17）', async () => {
+    await addCard('A');
+    const b = (await addCard('B')).body;
+    await addCard('C');
+
+    const up = await reorder(b.id, 'up');
+    assert.equal(up.status, 200);
+    assert.equal(up.body.title, 'B');
+    assert.deepEqual(await titles(), ['todo:B', 'todo:A', 'todo:C']);
+
+    await reorder(b.id, 'down');
+    await reorder(b.id, 'down');
+    assert.deepEqual(await titles(), ['todo:A', 'todo:C', 'todo:B']);
+  });
+
+  test('ほかの列のカードとは入れかわらない', async () => {
+    const a = (await addCard('A')).body;
+    const b = (await addCard('B')).body;
+    const c = (await addCard('C')).body;
+    await call('PATCH', `/api/cards/${a.id}`, { status: 'doing' });
+    await call('PATCH', `/api/cards/${c.id}`, { status: 'doing' });
+    // 進行中は A, C の順。C を↑すると A と入れかわり、やることの B は動かない
+    assert.equal((await reorder(c.id, 'up')).status, 200);
+    assert.deepEqual(await titles(), ['todo:B', 'doing:C', 'doing:A']);
+    // B はやることに1枚だけなので、どちらにも動かせない
+    assert.equal((await reorder(b.id, 'up')).status, 400);
+    assert.equal((await reorder(b.id, 'down')).status, 400);
+  });
+
+  test('一番上の↑・一番下の↓はエラーで、順番は変わらない（AT-18）', async () => {
+    const a = (await addCard('A')).body;
+    const b = (await addCard('B')).body;
+    const top = await reorder(a.id, 'up');
+    assert.equal(top.status, 400);
+    assert.equal(top.body.error, 'すでに一番上です');
+    const bottom = await reorder(b.id, 'down');
+    assert.equal(bottom.status, 400);
+    assert.equal(bottom.body.error, 'すでに一番下です');
+    assert.deepEqual(await titles(), ['todo:A', 'todo:B']);
+  });
+
+  test('「完了」のカードは並び替えできない（AT-18）', async () => {
+    const ids = [];
+    for (const title of ['A', 'B']) {
+      const { id } = (await addCard(title)).body;
+      await call('PATCH', `/api/cards/${id}`, { status: 'doing' });
+      await call('PATCH', `/api/cards/${id}`, { status: 'done' });
+      ids.push(id);
+    }
+    const { status, body } = await reorder(ids[1], 'up');
+    assert.equal(status, 400);
+    assert.equal(body.error, 'この列は並び替えできません');
+    assert.deepEqual(await titles(), ['done:A', 'done:B']);
+  });
+
+  test('向きの指定が正しくない・カードが無い・番号が正しくないときはエラー', async () => {
+    const { id } = (await addCard('A')).body;
+    for (const direction of ['left', '', null, 1, undefined]) {
+      assert.equal((await reorder(id, direction)).status, 400, JSON.stringify(direction));
+    }
+    assert.equal((await reorder(999999, 'up')).status, 404);
+    assert.equal((await call('POST', '/api/cards/abc/reorder', { direction: 'up' })).status, 400);
+  });
+
+  test('並び替えたあとに追加・移動したカードは一番下に入る', async () => {
+    const a = (await addCard('A')).body;
+    const b = (await addCard('B')).body;
+    await reorder(b.id, 'up');
+    await addCard('C');
+    assert.deepEqual(await titles(), ['todo:B', 'todo:A', 'todo:C']);
+    await call('PATCH', `/api/cards/${a.id}`, { status: 'doing' });
+    await call('PATCH', `/api/cards/${a.id}`, { status: 'todo' });
+    assert.deepEqual(await titles(), ['todo:B', 'todo:C', 'todo:A']);
+  });
+
+  test('ログインしていないと並び替えできない', async () => {
+    const { id } = (await addCard('A')).body;
+    const response = await fetch(`${baseUrl}/api/cards/${id}/reorder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direction: 'up' }),
+    });
+    assert.equal(response.status, 401);
+  });
+});
+
 describe('カード削除 F-04', () => {
   test('削除すると一覧から消え、2回目は見つからない', async () => {
     const { id } = (await addCard('宿題')).body;

@@ -1,8 +1,10 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { basicAuth } from './auth.js';
-import { createCard, deleteCard, listCards, moveCard } from './cards-repository.js';
-import { isValidStatus, parseId, validateTitle } from './validation.js';
+import { createCard, deleteCard, listCards, moveCard, reorderCard } from './cards-repository.js';
+import {
+  SORTABLE_STATUSES, isValidDirection, isValidStatus, parseId, validateTitle,
+} from './validation.js';
 
 const publicDir = fileURLToPath(new URL('../public', import.meta.url));
 
@@ -73,6 +75,31 @@ export function createApp({ pool, auth }) {
       return res.status(400).json({ error: 'カードはとなりの列にしか動かせません' });
     }
     res.json(moved.card);
+  });
+
+  // カード並び替え F-09（同じ列の1つ上・1つ下のカードと入れかえる）
+  app.post('/api/cards/:id/reorder', async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ error: 'カードの番号が正しくありません' });
+    }
+    const direction = req.body?.direction;
+    if (!isValidDirection(direction)) {
+      return res.status(400).json({ error: '並び替えの向きが正しくありません' });
+    }
+    const reordered = await reorderCard(pool, id, direction, SORTABLE_STATUSES);
+    if (reordered.result === 'not_found') {
+      return res.status(404).json({ error: 'カードが見つかりません' });
+    }
+    if (reordered.result === 'not_sortable') {
+      return res.status(400).json({ error: 'この列は並び替えできません' });
+    }
+    if (reordered.result === 'at_edge') {
+      return res.status(400).json({
+        error: direction === 'up' ? 'すでに一番上です' : 'すでに一番下です',
+      });
+    }
+    res.json(reordered.card);
   });
 
   // カード削除

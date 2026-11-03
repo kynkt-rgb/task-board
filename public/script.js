@@ -4,6 +4,8 @@ const COLUMNS = [
   { id: 'doing', name: '進行中' },
   { id: 'done', name: '完了' },
 ];
+// 並び替えできる列（F-09）。サーバーの SORTABLE_STATUSES と同じ
+const SORTABLE = ['todo', 'doing'];
 
 const form = document.getElementById('add-form');
 const input = document.getElementById('title-input');
@@ -69,7 +71,7 @@ function createButton(label, ariaLabel, className, onClick) {
 }
 
 /** カード1枚分の部品を作る（タイトルは textContent で入れ、HTMLとして読ませない） */
-function createCardElement(card, columnIndex) {
+function createCardElement(card, columnIndex, isFirst, isLast) {
   const item = document.createElement('li');
   item.className = 'card';
   item.dataset.id = String(card.id);
@@ -84,19 +86,38 @@ function createCardElement(card, columnIndex) {
     createButton('×', `「${card.title}」を削除`, 'delete', () => removeCard(card)),
   );
 
+  // 下の段は 左[←]・まんなか[↑][↓]・右[→] の3つの場所に分ける
   const actions = document.createElement('div');
   actions.className = 'card-actions';
+  const leftSlot = document.createElement('div');
+  const sortSlot = document.createElement('div');
+  const rightSlot = document.createElement('div');
+  leftSlot.className = 'slot-left';
+  sortSlot.className = 'slot-sort';
+  rightSlot.className = 'slot-right';
+
   const left = COLUMNS[columnIndex - 1];
   const right = COLUMNS[columnIndex + 1];
   if (left) {
-    actions.append(createButton('←', `「${card.title}」を${left.name}へ移動`, 'move-left',
+    leftSlot.append(createButton('←', `「${card.title}」を${left.name}へ移動`, 'move-left',
       () => moveCard(card, left.id, 'move-left')));
   }
+  if (SORTABLE.includes(card.status)) {
+    if (!isFirst) {
+      sortSlot.append(createButton('↑', `「${card.title}」を上へ`, 'sort-up',
+        () => reorderCard(card, 'up')));
+    }
+    if (!isLast) {
+      sortSlot.append(createButton('↓', `「${card.title}」を下へ`, 'sort-down',
+        () => reorderCard(card, 'down')));
+    }
+  }
   if (right) {
-    actions.append(createButton('→', `「${card.title}」を${right.name}へ移動`, 'move-right',
+    rightSlot.append(createButton('→', `「${card.title}」を${right.name}へ移動`, 'move-right',
       () => moveCard(card, right.id, 'move-right')));
   }
 
+  actions.append(leftSlot, sortSlot, rightSlot);
   item.append(header, actions);
   return item;
 }
@@ -115,15 +136,20 @@ function render() {
       empty.textContent = 'カードはありません';
       list.replaceChildren(empty);
     } else {
-      list.replaceChildren(...columnCards.map((card) => createCardElement(card, index)));
+      list.replaceChildren(...columnCards.map((card, pos) =>
+        createCardElement(card, index, pos === 0, pos === columnCards.length - 1)));
     }
   });
 }
 
-/** 画面を作りなおしたあと、操作していたカードのボタンにフォーカスを戻す（キーボード操作用） */
-function restoreFocus(cardId, className) {
+/**
+ * 画面を作りなおしたあと、操作していたカードのボタンにフォーカスを戻す（キーボード操作用）。
+ * classNames は先に書いたものほど優先。どれも無ければカードの最初のボタン、カードも無ければ入力欄へ。
+ */
+function restoreFocus(cardId, ...classNames) {
   const cardElement = board.querySelector(`.card[data-id="${cardId}"]`);
-  const target = cardElement?.querySelector(`.${className}`) ?? cardElement?.querySelector('button');
+  const target = classNames.map((name) => cardElement?.querySelector(`.${name}`)).find(Boolean)
+    ?? cardElement?.querySelector('button');
   (target ?? input).focus();
 }
 
@@ -172,7 +198,20 @@ async function moveCard(card, status, className) {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   }));
-  restoreFocus(card.id, className);
+  // 同じ向きのボタンへ。端の列に着いて消えたら反対向きのボタンへ
+  const other = className === 'move-left' ? 'move-right' : 'move-left';
+  restoreFocus(card.id, className, other);
+}
+
+// F-09：入れかえたあとは同じボタンへ。端に着いて消えたら反対向きのボタンへ
+async function reorderCard(card, direction) {
+  await run(() => api(`/api/cards/${card.id}/reorder`, {
+    method: 'POST',
+    body: JSON.stringify({ direction }),
+  }));
+  const same = direction === 'up' ? 'sort-up' : 'sort-down';
+  const other = direction === 'up' ? 'sort-down' : 'sort-up';
+  restoreFocus(card.id, same, other);
 }
 
 async function removeCard(card) {

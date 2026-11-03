@@ -159,14 +159,25 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+/* 下の段：左[←]・まんなか[↑][↓]・右[→] */
 .card-actions {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   margin-top: 8px;
 }
 
-.card-actions .move-right {
-  margin-left: auto;
+.slot-left {
+  justify-self: start;
+}
+
+.slot-sort {
+  display: flex;
+  gap: 4px;
+}
+
+.slot-right {
+  justify-self: end;
 }
 
 .card button {

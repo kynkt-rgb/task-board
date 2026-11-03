@@ -73,7 +73,7 @@ erDiagram
 | user_id | bigint | ○ | 外部キー（`users.id`）。ユーザーを消すと、そのカードも消える |
 | title | text | ○ | 1〜50文字（DBでもチェックする） |
 | status | text | ○ | 外部キー（`columns.id`）。初期値 `todo` |
-| position | bigint | ○ | 追加・移動のたびに新しい番号を振る。小さいほど上 |
+| position | bigint | ○ | 追加・移動のたびに新しい番号を振る（列の一番下に入る）。並び替え（F-09）では、となりのカードと番号を入れかえる。小さいほど上 |
 | created_at | timestamptz | ○ | 初期値は今の日時 |
 | updated_at | timestamptz | ○ | 移動したときに今の日時に変える |
 
@@ -135,7 +135,7 @@ sequenceDiagram
     end
 ```
 
-移動・削除も同じ順番（依頼 → 保存 → 読みなおして表示）で処理する。
+移動・並び替え・削除も同じ順番（依頼 → 保存 → 読みなおして表示）で処理する。
 
 **操作ごとのデータの変化**
 | 操作 | API | SQL | 変わる項目 |
@@ -143,4 +143,5 @@ sequenceDiagram
 | 開く | `GET /api/cards` | SELECT | － |
 | 追加 | `POST /api/cards` | INSERT | カードが1枚増える（status は `todo`） |
 | 移動 | `PATCH /api/cards/:id` | UPDATE | status・position・updated_at |
+| 並び替え | `POST /api/cards/:id/reorder` | UPDATE（2枚をまとめて。トランザクション） | 2枚の position を入れかえる・updated_at |
 | 削除 | `DELETE /api/cards/:id` | DELETE | カードが1枚減る |

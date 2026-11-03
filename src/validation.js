@@ -1,5 +1,8 @@
 export const TITLE_MAX_LENGTH = 50;
 export const STATUSES = ['todo', 'doing', 'done'];
+// 並び替えできる列（F-09）。「完了」は並び替えない
+export const SORTABLE_STATUSES = ['todo', 'doing'];
+export const DIRECTIONS = ['up', 'down'];
 
 /**
  * カードのタイトルをチェックする。
@@ -24,6 +27,11 @@ export function validateTitle(input) {
 /** 列の指定が todo / doing / done のどれかかをチェックする */
 export function isValidStatus(input) {
   return typeof input === 'string' && STATUSES.includes(input);
+}
+
+/** 並び替えの向きが up / down のどちらかかをチェックする */
+export function isValidDirection(input) {
+  return typeof input === 'string' && DIRECTIONS.includes(input);
 }
 
 /** URLの :id が正しい番号かをチェックし、番号を返す（正しくなければ null） */
